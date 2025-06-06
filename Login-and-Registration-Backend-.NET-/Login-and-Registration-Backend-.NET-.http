@@ -1,6 +1,103 @@
 @Login_and_Registration_Backend_.NET__HostAddress = http://localhost:5001
+@Login_and_Registration_Backend_.NET__HostAddress = http://localhost:5001
 
-GET {{Login_and_Registration_Backend_.NET__HostAddress}}/weatherforecast/
-Accept: application/json
+### Test Server Connection
+GET {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/test
 
-###
+### Register New User
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "TestPassword123!"
+}
+
+### Register Another User
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "SecurePass456!"
+}
+
+### Login User
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "TestPassword123!"
+}
+
+### Login User 2
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "password": "SecurePass456!"
+}
+
+### Get User Profile (Protected Route)
+# Replace YOUR_JWT_TOKEN_HERE with actual token from login response
+GET {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/profile
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Test Invalid Login
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "nonexistentuser",
+  "password": "wrongpassword"
+}
+
+### Test Duplicate Registration (Username)
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "different@example.com",
+  "password": "AnotherPass789!"
+}
+
+### Test Duplicate Registration (Email)
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "differentuser",
+  "email": "test@example.com",
+  "password": "AnotherPass789!"
+}
+
+### Test Google OAuth Login (Browser redirect)
+GET {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/google-login
+
+### Test Invalid Password Requirements
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "weakpassuser",
+  "email": "weak@example.com",
+  "password": "123"
+}
+
+### Test Missing Fields
+POST {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "incompleteuser",
+  "email": "incomplete@example.com"
+}
+
+### Test Profile with Invalid Token
+GET {{Login_and_Registration_Backend_.NET__HostAddress}}/api/auth/profile
+Authorization: Bearer invalid.jwt.token.here
