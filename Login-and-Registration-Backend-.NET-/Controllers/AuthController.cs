@@ -67,16 +67,16 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
 
                 var token = _userService.GenerateJwtToken(user);
 
-                return Ok(new
-                {
-                    User = new UserDto
-                    {
-                        Id = user.Id,
-                        Username = user.UserName ?? string.Empty,
-                        Email = user.Email ?? string.Empty
-                    },
-                    Token = token
-                });
+				return Ok(new
+				{
+					User = new UserDto
+					{
+						Id = user.Id,
+						Username = user.UserName ?? string.Empty,
+						Email = user.Email ?? string.Empty
+					},
+					Token = token
+				});
             }
             catch (Exception ex)
             {

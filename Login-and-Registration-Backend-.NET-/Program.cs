@@ -56,8 +56,9 @@ builder.Services.AddCors(options =>
 // Add Authentication
 builder.Services.AddAuthentication(options =>
 {
-	options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddCookie("Cookies")
 .AddJwtBearer(options =>
