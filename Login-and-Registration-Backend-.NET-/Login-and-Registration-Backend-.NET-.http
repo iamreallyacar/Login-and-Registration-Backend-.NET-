@@ -1,0 +1,6 @@
+@Login_and_Registration_Backend_.NET__HostAddress = http://localhost:5001
+
+GET {{Login_and_Registration_Backend_.NET__HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
