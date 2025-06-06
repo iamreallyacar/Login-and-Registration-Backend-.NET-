@@ -12,6 +12,8 @@ using Login_and_Registration_Backend_.NET_.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls("http://localhost:5000", "https://localhost:7001");
+
 // Entity Framework and MySQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 	options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))

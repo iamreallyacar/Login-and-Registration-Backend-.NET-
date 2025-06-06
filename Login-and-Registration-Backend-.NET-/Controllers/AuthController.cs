@@ -127,8 +127,8 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         [HttpGet("google-login")]
         public IActionResult GoogleLogin(string? returnUrl = null)
         {
-            var redirectUrl = "http://localhost:5001/api/auth/oauth-success";
-            var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
+            var redirectUrl = $"{Request.Scheme}://{Request.Host}/api/auth/oauth-success";
+			var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
 
