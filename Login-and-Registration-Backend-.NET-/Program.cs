@@ -34,6 +34,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 // SignInManager
 builder.Services.AddScoped<SignInManager<ApplicationUser>>();
 
+// Add Configuration validation
+builder.Services.AddOptions<JwtSettings>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

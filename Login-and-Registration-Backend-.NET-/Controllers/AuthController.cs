@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Login_and_Registration_Backend_.NET_.Services;
 using Login_and_Registration_Backend_.NET_.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Login_and_Registration_Backend_.NET_.Controllers
 {
@@ -18,14 +19,17 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ILogger<AuthController> _logger;
 
         /// <summary>
         /// Initializes a new instance of the AuthController with dependency injection.
         /// </summary>
         /// <param name="userService">Service for user management operations</param>
-        public AuthController(IUserService userService)
+        /// <param name="logger">Logger for tracking operations and errors</param>
+        public AuthController(IUserService userService, ILogger<AuthController> logger)
         {
             _userService = userService;
+            _logger = logger;
         }        /// <summary>
         /// Registers a new user account with username, email, and password.
         /// Validates that username and email are unique before creating the account.
@@ -37,6 +41,14 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { 
+                    message = "Validation failed", 
+                    errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) 
+                });
+            }
+
             try
             {
                 // Check if user already exists by username or email to prevent duplicates
@@ -64,6 +76,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
             }            catch (Exception ex)
             {
                 // Log the exception in a production environment
+                _logger.LogError(ex, "Registration error for {Email}", request.Email);
                 return BadRequest(new { message = "Registration error: " + ex.Message });
             }
         }
@@ -106,6 +119,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
             catch (Exception ex)
             {
                 // Log the exception in a production environment
+                _logger.LogError(ex, "Login error for {Username}", request.Username);
                 return BadRequest(new { message = ex.Message });
             }
         }
@@ -161,6 +175,7 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error retrieving profile for user ID {UserId}", User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
                 return BadRequest(new { message = ex.Message });
             }
         }

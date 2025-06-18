@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Login_and_Registration_Backend_.NET_.Models;
 using Login_and_Registration_Backend_.NET_.Data;
+using Microsoft.Extensions.Logging;
 
 namespace Login_and_Registration_Backend_.NET_.Services
 {
@@ -11,17 +12,20 @@ namespace Login_and_Registration_Backend_.NET_.Services
     	private readonly SignInManager<ApplicationUser> _signInManager;
 		private readonly IJwtService _jwtService;
 		private readonly ApplicationDbContext _dbContext;
+		private readonly ILogger<UserService> _logger;
 
 		public UserService(
 			UserManager<ApplicationUser> userManager,
 			SignInManager<ApplicationUser> signInManager,
 			IJwtService jwtService,
-			ApplicationDbContext dbContext)
+			ApplicationDbContext dbContext,
+			ILogger<UserService> logger)
 		{
 			_userManager = userManager;
 			_signInManager = signInManager;
 			_jwtService = jwtService;
 			_dbContext = dbContext;
+			_logger = logger;
 		}
 
 		public string GenerateJwtToken(ApplicationUser user)
@@ -55,24 +59,42 @@ namespace Login_and_Registration_Backend_.NET_.Services
 
 			return await _userManager.CreateAsync(user, request.Password);
 		}
-
 		public async Task<(bool Success, ApplicationUser? User)> ValidateUserAsync(LoginRequest request)
 		{
-			var user = await _userManager.FindByNameAsync(request.Username);
-			if (user == null)
+			try
 			{
+				var user = await _userManager.FindByNameAsync(request.Username);
+				if (user == null)
+				{
+					_logger.LogWarning("Login attempt with non-existent username: {Username}", request.Username);
+					return (false, null);
+				}
+
+				var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
+				if (result.Succeeded)
+				{
+					user.LastLoginAt = DateTime.UtcNow;
+					await _userManager.UpdateAsync(user);
+					_logger.LogInformation("Successful login for user: {Username}", request.Username);
+					return (true, user);
+				}
+
+				if (result.IsLockedOut)
+				{
+					_logger.LogWarning("Login attempt for locked out user: {Username}", request.Username);
+				}
+				else
+				{
+					_logger.LogWarning("Failed login attempt for user: {Username}", request.Username);
+				}
+
 				return (false, null);
 			}
-
-			var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
-			if (result.Succeeded)
+			catch (Exception ex)
 			{
-				user.LastLoginAt = DateTime.UtcNow;
-				await _userManager.UpdateAsync(user);
-				return (true, user);
+				_logger.LogError(ex, "Error during user validation for username: {Username}", request.Username);
+				return (false, null);
 			}
-
-			return (false, null);
 		}
 
 		public string HashPassword(ApplicationUser user, string password)
