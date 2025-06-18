@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Login_and_Registration_Backend_.NET_.Services;
 using Login_and_Registration_Backend_.NET_.Models;
+using Login_and_Registration_Backend_.NET_.Models.DTOs;
 using Microsoft.Extensions.Logging;
 
 namespace Login_and_Registration_Backend_.NET_.Controllers
@@ -39,45 +40,37 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         /// <response code="200">User registered successfully</response>
         /// <response code="400">Registration failed due to validation errors or duplicate user</response>
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
-        {
-            if (!ModelState.IsValid)
+        public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
+        {            if (!ModelState.IsValid)
             {
-                return BadRequest(new { 
-                    message = "Validation failed", 
-                    errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) 
-                });
+                return BadRequest(ApiResponse.ErrorResponse("Validation failed", 
+                    ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()));
             }
 
             try
             {
                 // Check if user already exists by username or email to prevent duplicates
                 var existingUserByUsername = await _userService.GetUserByUsernameAsync(request.Username);
-                var existingUserByEmail = await _userService.GetUserByEmailAsync(request.Email);
-
-                if (existingUserByUsername != null || existingUserByEmail != null)
+                var existingUserByEmail = await _userService.GetUserByEmailAsync(request.Email);                if (existingUserByUsername != null || existingUserByEmail != null)
                 {
-                    return BadRequest(new { message = "Username or email already exists" });
+                    return BadRequest(ApiResponse.ErrorResponse("Username or email already exists"));
                 }
 
                 // Register user using ASP.NET Core Identity with password validation
                 var result = await _userService.RegisterUserAsync(request);
-                
-                if (result.Succeeded)
+                  if (result.Succeeded)
                 {
-                    return Ok(new { message = "User registered successfully" });
+                    return Ok(ApiResponse.SuccessResponse("User registered successfully"));
                 }
 
                 // Return validation errors from Identity (password complexity, etc.)
-                return BadRequest(new { 
-                    message = "Registration failed", 
-                    errors = result.Errors.Select(e => e.Description) 
-                });
+                return BadRequest(ApiResponse.ErrorResponse("Registration failed", 
+                    result.Errors.Select(e => e.Description).ToList()));
             }            catch (Exception ex)
             {
                 // Log the exception in a production environment
                 _logger.LogError(ex, "Registration error for {Email}", request.Email);
-                return BadRequest(new { message = "Registration error: " + ex.Message });
+                return BadRequest(ApiResponse.ErrorResponse("Registration error: " + ex.Message));
             }
         }
 
@@ -88,39 +81,40 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
         /// <param name="request">Login request containing username and password</param>
         /// <returns>User information and JWT token, or error message</returns>
         /// <response code="200">Login successful with user data and JWT token</response>
-        /// <response code="401">Invalid username or password</response>
-        /// <response code="400">Request processing error</response>
+        /// <response code="401">Invalid username or password</response>        /// <response code="400">Request processing error</response>
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
             try
             {
                 // Validate user credentials using ASP.NET Core Identity
                 var (success, user) = await _userService.ValidateUserAsync(request);
-                
-                if (!success || user == null)
+                  if (!success || user == null)
                 {
-                    return Unauthorized(new { message = "Invalid username or password" });
-                }                // Generate JWT token for the authenticated user
+                    return Unauthorized(ApiResponse.ErrorResponse("Invalid username or password"));
+                }// Generate JWT token for the authenticated user
                 var token = _userService.GenerateJwtToken(user);
+                var tokenExpiration = _userService.GetTokenExpiration();                // Return user information and token for client-side storage
+                var response = new AuthResponseDto
+                {
+                    User = new Models.DTOs.UserDto
+                    {
+                        Id = user.Id,
+                        Username = user.UserName ?? string.Empty,
+                        Email = user.Email ?? string.Empty,
+                        CreatedAt = user.CreatedAt,
+                        LastLoginAt = user.LastLoginAt
+                    },
+                    Token = token,
+                    TokenExpiration = tokenExpiration
+                };
 
-                // Return user information and token for client-side storage
-				return Ok(new
-				{
-					User = new UserDto
-					{
-						Id = user.Id,
-						Username = user.UserName ?? string.Empty,
-						Email = user.Email ?? string.Empty
-					},
-					Token = token
-				});
-            }
-            catch (Exception ex)
+                return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(response, "Login successful"));
+            }            catch (Exception ex)
             {
                 // Log the exception in a production environment
                 _logger.LogError(ex, "Login error for {Username}", request.Username);
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
             }
         }
 
@@ -150,33 +144,32 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
             try
             {
                 // Extract user ID from JWT token claims
-                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-                if (userIdClaim == null)
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);                if (userIdClaim == null)
                 {
-                    return Unauthorized(new { message = "Invalid token" });
+                    return Unauthorized(ApiResponse.ErrorResponse("Invalid token"));
                 }
 
                 // Retrieve user from database using ID from token
                 var user = await _userService.GetUserByIdAsync(userIdClaim.Value);
                 if (user == null)
                 {
-                    return NotFound(new { message = "User not found" });
+                    return NotFound(ApiResponse.ErrorResponse("User not found"));
                 }
 
-                return Ok(new
+                var userDto = new Models.DTOs.UserDto
                 {
-                    user = new UserDto
-                    {
-                        Id = user.Id,
-                        Username = user.UserName ?? string.Empty,
-                        Email = user.Email ?? string.Empty
-                    }
-                });
-            }
-            catch (Exception ex)
+                    Id = user.Id,
+                    Username = user.UserName ?? string.Empty,
+                    Email = user.Email ?? string.Empty,
+                    CreatedAt = user.CreatedAt,
+                    LastLoginAt = user.LastLoginAt
+                };
+
+                return Ok(ApiResponse<Models.DTOs.UserDto>.SuccessResponse(userDto, "Profile retrieved successfully"));
+            }            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving profile for user ID {UserId}", User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(ApiResponse.ErrorResponse(ex.Message));
             }
         }
 
@@ -206,17 +199,16 @@ namespace Login_and_Registration_Backend_.NET_.Controllers
                 if (string.IsNullOrEmpty(email))
                 {
                     return Redirect("http://localhost:5174/oauth-success?error=No%20email%20returned%20from%20Google");
-                }
-
-                // Find or create user
-                var user = await _userService.GetUserByEmailAsync(email);
-                if (user == null)
+                }                // Find or create user
+                var user = await _userService.GetUserByEmailAsync(email);                if (user == null)
                 {
-                    var registerRequest = new RegisterRequest
+                    var password = Guid.NewGuid().ToString(); // Generate random password for OAuth users
+                    var registerRequest = new RegisterRequestDto
                     {
                         Username = name ?? email,
                         Email = email,
-                        Password = Guid.NewGuid().ToString() // Generate random password for OAuth users
+                        Password = password,
+                        ConfirmPassword = password // Same as password for OAuth registration
                     };
 
                     var result = await _userService.RegisterUserAsync(registerRequest);
